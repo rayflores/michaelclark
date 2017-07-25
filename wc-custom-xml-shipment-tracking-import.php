@@ -68,6 +68,7 @@ add_action( 'wp', 'wc_custom_xml_schedule_xml_fetch_cron' );
  */
 function import_from_path(  ) {
 	$to = get_option('admin_email');
+	// $to = 'rayflores88@gmail.com';
 	$message = '';
 	$from = 'From: XML Importer' . $to;
 	$headers = array('Content-Type: text/html; charset=UTF-8',$from);
@@ -98,7 +99,7 @@ function import_from_path(  ) {
 		if ( isset($xml->shipment) ) {
 			
 			$loop = 0;
-
+			$success = false;
 			foreach ( $xml as $uploaded_file ) {
 				
 				// ordernumber
@@ -175,6 +176,7 @@ function import_from_path(  ) {
 					$skipped++;
 					wp_mail( $to, 'XML Import: Order not found', $message );
 				}
+			$success = true;	
 			}
 
 			$total = $loop;
@@ -187,9 +189,11 @@ function import_from_path(  ) {
 			die();
 
 		}
+			if ($success === true ){
 		// send Result
 			$message .= sprintf( __( 'Import complete: Totals: %s order number found, %s tracking numbers, %s carriers and skipped %s', 'woocommerce' ), $total, $imported, $carriers, $skipped );
-			
+			$headers = "Disposition-Notification-To: yourEmailID\n";
 			wp_mail( $to, 'XML Import complete', $message );
+			}
 }
 
