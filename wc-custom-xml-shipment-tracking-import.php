@@ -74,31 +74,53 @@ function import_from_path(  ) {
 	$headers = array('Content-Type: text/html; charset=UTF-8',$from);
 	
 	$path = $_SERVER['DOCUMENT_ROOT'] . '/bmorders/bmimports'; 
-	$latest_ctime = 0;
+	$newpath = $_SERVER['DOCUMENT_ROOT'] . '/bmorders/bmimports/completed_bmimports'; 
+	$moved = 0;
 	$latest_filename = '';    
-
-	$d = dir($path);
+		// now let's move the files to archive
+	// Open a known directory, and proceed to read its contents
+    if (is_dir($path)) {
+        if ($dh = opendir($path)) {
+            while (($file = readdir($dh)) !== false) {
+				if ($file==".") continue;
+				if ($file=="..")continue;
+				if (rename($path.'/'.$file, $newpath.'/'.$file)){
+					$moved++;
+				}
+			}
+			closedir($dh);
+		}
+	}
+	$d = dir($newpath);
+	$filnames = array();
 	while (false !== ($entry = $d->read())) {
-	  $filepath = "{$path}/{$entry}";
+	  $filepath = "{$newpath}/{$entry}";
 	  // could do also other checks than just checking whether the entry is a file
-	  if (is_file($filepath) && filectime($filepath) > $latest_ctime) {
+	  if ( is_file($filepath) ) {
 		$latest_ctime = filectime($filepath);
 		$latest_filename = $entry;
+		$filenames[] = $entry;
 	  }
 	}
-	$newest_file = $path . '/' . $latest_filename;
-	$temp = file_get_contents($newest_file);
+	
 	$total = $imported = $carriers = $skipped = 0;
+	$loop = 0;
+	foreach ($filenames as $onefile){
+		
+	$newest_file = $newpath . '/' . $onefile;
+	
+	$temp = file_get_contents($newest_file);
+	
 	$skipped_report = '';
 	$true = false;
 	// if ( file_exists($file) ) {
-		$xml = new SimpleXMLElement(file_get_contents($newest_file)); 
+		$xml = simplexml_load_string(stripslashes('<?xml version="1.0" encoding="utf-8"?>'.$temp)); 
 		
 		$true = true;
 	// }
 		if ( isset($xml->shipment) ) {
 			
-			$loop = 0;
+			
 			$success = false;
 			foreach ( $xml as $uploaded_file ) {
 				
@@ -152,14 +174,14 @@ function import_from_path(  ) {
 									
 									if ( count( $pre_existing_tracking ) === 0 ) {
 										$tracking_item = $WC_Shipment_Tracking_Actions->add_tracking_item( $tracking_order_id, $args );
+										$success = true;
+									} else {
+										$skipped++;
 									}
 						}
 						$order = new WC_Order( $order_id );
 						$order->update_status( 'completed' );
 						
-						// Send email
-						// WC()->mailer();
-						// do_action('woocommerce_shipping_tracking_number_added', $order_id );
 
 						$loop++;
 						$imported++;
@@ -176,7 +198,7 @@ function import_from_path(  ) {
 					$skipped++;
 					wp_mail( $to, 'XML Import: Order not found', $message );
 				}
-			$success = true;	
+				
 			}
 
 			$total = $loop;
@@ -189,11 +211,16 @@ function import_from_path(  ) {
 			die();
 
 		}
+
+    		
+	} // end foreach
+
 			if ($success === true ){
 		// send Result
-			$message .= sprintf( __( 'Import complete: Totals: %s order number found, %s tracking numbers, %s carriers and skipped %s', 'woocommerce' ), $total, $imported, $carriers, $skipped );
+			$message .= sprintf( __( 'Import complete: Totals: %s order number found, %s tracking numbers, %s carriers and skipped %s and %s files moved to archive folder.', 'woocommerce' ), $total, $imported, $carriers, $skipped, $moved );
 			$headers = "Disposition-Notification-To: yourEmailID\n";
 			wp_mail( $to, 'XML Import complete', $message );
-			}
+			} 
+			
 }
 
