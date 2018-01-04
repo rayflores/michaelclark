@@ -149,7 +149,7 @@ function import_from_path(  ) {
 
 					// verify tracking number
 					if ( $tracking_number !== '' ) {
-						if ($tracker === "Mail"){
+						if ($tracker === "USPS"){
 							
 							$tracking_provider = 'usps';
 						} else {
